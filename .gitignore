@@ -1,0 +1,7 @@
+out*/
+recordings/
+.ipynb_checkpoints/
+__pycache__/
+*.pth
+models/
+logs/
