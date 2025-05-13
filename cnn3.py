@@ -56,7 +56,8 @@ class Config:
     # Training parameters
     epochs = 50  # Increased from 10
     batch_size = 16  # Increased from 16
-    learning_rate = 0.0005  # More specific learning rate
+    # learning_rate = 0.0005  # More specific learning rate
+    learning_rate = 0.001  # More specific learning rate
     weight_decay = 1e-5  # Added weight decay for regularization
 
     # Early stopping parameters
@@ -256,20 +257,25 @@ class SimplerAccentCNN(nn.Module):
         self.bn1 = nn.BatchNorm2d(32)
         self.pool1 = nn.MaxPool2d(2)
 
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
-        self.bn2 = nn.BatchNorm2d(64)
-        self.pool2 = nn.MaxPool2d(2)
+        # self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
+        # self.bn2 = nn.BatchNorm2d(64)
+        # self.pool2 = nn.MaxPool2d(2)
 
-        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
-        self.bn3 = nn.BatchNorm2d(128)
-        self.pool3 = nn.MaxPool2d(2)
+        # self.conv3 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+        # self.bn3 = nn.BatchNorm2d(128)
+        # self.pool3 = nn.MaxPool2d(2)
 
         # Global average pooling
         self.gap = nn.AdaptiveAvgPool2d(1)
 
         # Classification head
         self.classifier = nn.Sequential(
-            nn.Linear(128, 64), nn.ReLU(), nn.Dropout(0.3), nn.Linear(64, num_classes)
+            # nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            # nn.Linear(64, num_classes)
+            nn.Linear(32, num_classes)
         )
 
         # NEW, DELETE IF BREAK

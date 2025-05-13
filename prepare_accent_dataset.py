@@ -136,71 +136,6 @@ def process_accent_dataset(accent_dataset_dir, output_dir, target_sr=16000, num_
     data = [result for result in results if result is not None]
     return pd.DataFrame(data)
 
-# def process_accent_dataset(accent_dataset_dir, output_dir, target_sr=16000):
-#     """
-#     Process a generic accent dataset with the following structure:
-#     accent_dataset_dir/
-#         accent_a1.mp3
-#         accent_a2.mp3
-#         accent_b1.mp3
-#             ...
-    
-#     Args:
-#         accent_dataset_dir: Path to accent dataset
-#         output_dir: Where to save processed files
-#         target_sr: Target sample rate
-    
-#     Returns:
-#         DataFrame with file paths and accent information
-#     """
-#     print(f"Processing accent dataset from {accent_dataset_dir}")
-    
-#     os.makedirs(output_dir, exist_ok=True)
-#     data = []
-    
-#     for audio_file in tqdm(os.listdir(accent_dataset_dir), desc="Processing input", smoothing=.05):
-#         accent = re.match(r"([a-zA-Z]+)\d+\.(?:mp3|wav|flac)", audio_file)
-#         if accent is None:
-#             continue
-
-#         accent = accent.group(1)
-#         file_name = os.path.splitext(os.path.basename(audio_file))
-
-#         try:
-#             audio_path = os.path.join(accent_dataset_dir, audio_file)
-            
-#             # Load audio
-#             waveform, sample_rate = torchaudio.load(audio_path)
-            
-#             # Convert to mono if stereo
-#             if waveform.shape[0] > 1:
-#                 waveform = torch.mean(waveform, dim=0, keepdim=True)
-            
-#             # Resample if necessary
-#             if sample_rate != target_sr:
-#                 resampler = torchaudio.transforms.Resample(sample_rate, target_sr)
-#                 waveform = resampler(waveform)
-
-#             # Clip Silence
-#             waveform = torchaudio.functional.vad(waveform, sample_rate)
-            
-#             # Save processed audio
-#             output_filename = f"{file_name[0]}.wav"
-#             output_path = os.path.join(output_dir, output_filename)
-#             torchaudio.save(output_path, waveform, target_sr)
-            
-#             # Add to data
-#             data.append({
-#                 "file_path": output_path,
-#                 "accent": accent,
-#                 "duration": waveform.shape[1] / target_sr,
-#                 "source": "dataset"
-#             })
-            
-#         except Exception as e:
-#             print(f"Error processing {audio_path}: {e}")
-
-#     return pd.DataFrame(data)
 
 def pitch_shift_resample(waveform, sample_rate, n_steps):
     """
@@ -227,133 +162,6 @@ def time_stretch_spectrogram(waveform, sample_rate, rate):
     griffin_lim = torchaudio.transforms.GriffinLim(n_fft=n_fft, hop_length=hop_length)
     return griffin_lim(stretched_spec.abs())
 
-
-def process_augmentation(sample_info, processed_dir, accent_data, max_duration=None, seed=None):
-    """
-    Process a single augmentation task.
-    
-    Args:
-        sample_info: Tuple of (sample_row, accent, count_in_accent)
-        processed_dir: Directory to save processed files
-        accent_data: DataFrame with accent information
-        max_duration: Maximum duration of audio
-        seed: Random seed
-    
-    Returns:
-        Dictionary with augmented sample information
-    """
-    if seed is not None:
-        random.seed(seed + sample_info[2])  # Use different seed for each sample
-    
-    sample, accent, count_in_accent = sample_info
-    
-    try:
-        # Load the audio file
-        waveform, sample_rate = torchaudio.load(sample["file_path"])
-        
-        # Apply augmentation
-        aug_waveform = generate_augmented_audio(waveform, sample_rate, max_duration=max_duration)
-        
-        # Save augmented audio
-        aug_filename = f"{os.path.splitext(os.path.basename(sample['file_path']))[0]}{count_in_accent}.wav"
-        aug_path = os.path.join(processed_dir, "dataset", aug_filename)
-        torchaudio.save(aug_path, aug_waveform, sample_rate)
-        
-        # Return augmented data
-        return {
-            "file_path": aug_path,
-            "accent": accent,
-            "duration": aug_waveform.shape[1] / sample_rate,
-            "source": "augmented"
-        }
-    except Exception as e:
-        print(f"Error augmenting {sample['file_path']}: {e}")
-        return None
-
-
-def augment_dataset_parallel(args, accent_data, processed_dir, valid_accents, num_workers=8):
-    """
-    Parallelize dataset augmentation.
-    
-    Args:
-        args: Arguments with augment_dataset_num, max_duration, and seed
-        accent_data: DataFrame with accent information
-        processed_dir: Directory to save processed files
-        valid_accents: List of valid accents
-        num_workers: Number of workers (defaults to CPU count)
-    
-    Returns:
-        DataFrame with augmented accent information
-    """
-    if args.augment_dataset_num == 0:
-        return pd.DataFrame()
-    
-    print("Applying data augmentation in parallel...")
-    
-    # Ensure dataset directory exists
-    os.makedirs(os.path.join(processed_dir, "dataset"), exist_ok=True)
-    
-    # Set up multiprocessing
-    num_workers = max(min(num_workers, mp.cpu_count()), 1)
-    
-    # Get accent counts after filtering
-    accent_counts = accent_data["accent"].value_counts()
-    max_count = accent_counts.max()
-    
-    # Prepare augmentation tasks
-    all_augmentation_tasks = []
-    
-    for accent in valid_accents:
-        accent_samples = accent_data[accent_data["accent"] == accent]
-        current_count = len(accent_samples)
-        
-        if current_count >= max_count:
-            continue
-            
-        # Calculate how many augmentations we need
-        num_to_augment = min(args.augment_dataset_num, max_count - current_count)
-        
-        # Randomly select samples to augment (with replacement if needed)
-        samples_to_augment = accent_samples.sample(
-            n=min(num_to_augment, current_count), 
-            replace=(num_to_augment > current_count),
-            random_state=args.seed
-        )
-        
-        # Track the current count for each accent to generate unique filenames
-        for i, (_, sample) in enumerate(samples_to_augment.iterrows()):
-            # Add a tuple of (sample, accent, count_in_accent)
-            count_in_accent = i + 1
-            all_augmentation_tasks.append((sample, accent, count_in_accent))
-    
-    if not all_augmentation_tasks:
-        print("No augmentation tasks to perform.")
-        return pd.DataFrame()
-        
-    # Create partial function for multiprocessing
-    process_func = partial(
-        process_augmentation,
-        processed_dir=processed_dir,
-        accent_data=accent_data,
-        max_duration=args.max_duration,
-        seed=args.seed
-    )
-    
-    # Process augmentations in parallel
-    print(f"Processing {len(all_augmentation_tasks)} augmentations using {num_workers} workers")
-    
-    with mp.Pool(processes=num_workers) as pool:
-        results = list(tqdm(
-            pool.imap(process_func, all_augmentation_tasks),
-            total=len(all_augmentation_tasks),
-            desc="Augmenting audio"
-        ))
-    
-    # Filter out None results and create DataFrame
-    augmented_data = [result for result in results if result is not None]
-    print(f"Created {len(augmented_data)} augmented samples")
-    
-    return pd.DataFrame(augmented_data)
 
 def generate_augmented_audio(waveform, sample_rate, max_duration=None):
     """
@@ -471,10 +279,6 @@ def create_dataset(args):
         args.num_workers
     )
 
-    # Combine data
-        
-    # accent_data = pd.concat(all_data, ignore_index=True)
-    
     # Filter by duration
     if args.min_duration > 0:
         accent_data = accent_data[accent_data["duration"] >= args.min_duration]
@@ -493,20 +297,6 @@ def create_dataset(args):
     
     accent_data = accent_data[accent_data["accent"].isin(valid_accents)]
     accent_data = accent_data.sort_values(by='file_path').reset_index(drop=True)
-
-    # if args.augment_dataset_num != 0:
-    #     augmented_df = augment_dataset_parallel(
-    #         args, 
-    #         accent_data, 
-    #         processed_dir, 
-    #         valid_accents,
-    #         args.num_workers
-    #     )
-        
-    #     # Add augmented data to the main dataset if we have any
-    #     if not augmented_df.empty:
-    #         accent_data = pd.concat([accent_data, augmented_df], ignore_index=True)
-    #         print(f"Added {len(augmented_df)} augmented samples")    # Augment data
 
     if args.augment_dataset_num != 0:
         print("Applying data augmentation...")
@@ -542,33 +332,7 @@ def create_dataset(args):
                     "source": os.path.basename(sample["file_path"])
                 })
                 
-            # # Calculate how many augmentations we need
-            # num_to_augment = min(args.augment_dataset_num, max_count - current_count)
-            
-            # # Randomly select samples to augment
-            # samples_to_augment = accent_samples.sample(n=min(num_to_augment, current_count), random_state=args.seed)
-            
-            # for _, sample in tqdm(samples_to_augment.iterrows(), total=len(samples_to_augment), desc=f"Augmenting {accent}", leave=False):
-            #     # Load the audio file
-            #     waveform, sample_rate = torchaudio.load(sample["file_path"])
-                
-            #     # Apply augmentation
-            #     aug_waveform = generate_augmented_audio(waveform, sample_rate, max_duration=args.max_duration)
-                
-            #     # Save augmented audio
-            #     curr_accent_count = accent_data[accent_data["accent"] == accent].size
-            #     aug_filename = f"{os.path.splitext(os.path.basename(sample['file_path']))[0]}{curr_accent_count + 1}.wav"
-            #     aug_path = os.path.join(processed_dir, "dataset", aug_filename)
-            #     torchaudio.save(aug_path, aug_waveform, sample_rate)
-                
-            #     # Add to augmented data
-            #     augmented_data.append({
-            #         "file_path": aug_path,
-            #         "accent": accent,
-            #         "duration": aug_waveform.shape[1] / sample_rate,
-            #         "source": "augmented"
-            #     })
-        
+
         # Add augmented data to the main dataset
         if augmented_data:
             accent_data = pd.concat([accent_data, pd.DataFrame(augmented_data)], ignore_index=True)
@@ -577,7 +341,7 @@ def create_dataset(args):
     if args.oversample != 0:
         accent_counts = accent_data["accent"].value_counts()
 
-        for accent in tqdm(valid_accents, desc="Accents"):
+        for accent in tqdm(valid_accents, desc="Oversampling Accents"):
             accent_samples = accent_data[accent_data["accent"] == accent]
             current_count = len(accent_samples)
 
