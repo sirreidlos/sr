@@ -48,29 +48,30 @@ shared_cfg = SharedConfig()
 class Config:
     # Audio processing parameters
     n_fft = 512  # Increased from 400
-    n_mels = 80  # Increased from 40
-    n_mfcc = 13
+    n_mels = 40  # Increased from 40
+    n_mfcc = 40
     hop_length = int(0.010 * shared_cfg.sample_rate)
     win_length = int(0.025 * shared_cfg.sample_rate)
 
     # Training parameters
-    epochs = 50  # Increased from 10
+    epochs = 25  # Increased from 10
     batch_size = 16  # Increased from 16
     # learning_rate = 0.0005  # More specific learning rate
     learning_rate = 0.001  # More specific learning rate
     weight_decay = 1e-5  # Added weight decay for regularization
 
     # Early stopping parameters
-    patience = 50
+    patience = 5
 
     # Data augmentation parameters
+    aug = False
+    spec_aug = False
     time_shift_pct = 0.1
-    spec_aug = True
     freq_mask_param = 10
     time_mask_param = 20
 
     # Model params
-    dropout_rate = 0.5  # Increased dropout
+    dropout_rate = 0.2  # Increased dropout
 
 
 cfg = Config()
@@ -95,18 +96,19 @@ class SpecAugment(nn.Module):
         batch_size, channels, n_mels, time_steps = spec.shape
 
         # Apply frequency masking
-        for i in range(batch_size):
-            for _ in range(2):  # Apply twice
-                f = np.random.randint(0, self.freq_mask_param)
-                f0 = np.random.randint(0, n_mels - f)
-                spec[i, :, f0 : f0 + f, :] = 0
+        if cfg.aug:
+            for i in range(batch_size):
+                for _ in range(2):  # Apply twice
+                    f = np.random.randint(0, self.freq_mask_param)
+                    f0 = np.random.randint(0, n_mels - f)
+                    spec[i, :, f0 : f0 + f, :] = 0
 
-        # Apply time masking
-        for i in range(batch_size):
-            for _ in range(2):  # Apply twice
-                t = np.random.randint(0, self.time_mask_param)
-                t0 = np.random.randint(0, time_steps - t)
-                spec[i, :, :, t0 : t0 + t] = 0
+            # Apply time masking
+            for i in range(batch_size):
+                for _ in range(2):  # Apply twice
+                    t = np.random.randint(0, self.time_mask_param)
+                    t0 = np.random.randint(0, time_steps - t)
+                    spec[i, :, :, t0 : t0 + t] = 0
 
         return spec
 
@@ -189,7 +191,7 @@ class AccentDataset(Dataset):
 
         # print(f"[DEBUG] waveform RESAMPLED type: {type(waveform)} size: {waveform.size()} dim: {waveform.dim()}")
         # Apply time shifting augmentation (for training only)
-        if self.time_shift_pct > 0:
+        if self.time_shift_pct > 0 and cfg.aug:
             shift_amount = int(waveform.shape[1] * self.time_shift_pct)
             if shift_amount > 0:
                 shift = random.randint(-shift_amount, shift_amount)
@@ -239,7 +241,7 @@ class EnhancedMFCC(nn.Module):
         delta = self.delta(mfcc)
         delta2 = self.delta(delta)
         # Stack all features: [batch, 3*n_mfcc, time]
-        ret = torch.cat([mfcc, delta, delta2], dim=1)
+        ret = torch.stack([mfcc, delta, delta2], dim=0)
 
         # print(f"[DEBUG] FW MFCC type: {type(mfcc)} size: {mfcc.size()} dim: {mfcc.dim()}")
         # print(f"[DEBUG] FW delta type: {type(delta)} size: {delta.size()} dim: {delta.dim()}")
@@ -252,30 +254,22 @@ class SimplerAccentCNN(nn.Module):
     def __init__(self, input_channels, num_mfcc, num_classes, dropout_rate=0.5):
         super().__init__()
 
-        # Feature extraction
-        self.conv1 = nn.Conv2d(input_channels, 32, kernel_size=3, padding=1)
-        self.bn1 = nn.BatchNorm2d(32)
-        self.pool1 = nn.MaxPool2d(2)
+        self.conv1 = nn.Conv2d(input_channels, 16, kernel_size=(3, 3), padding=1)
+        self.bn1 = nn.BatchNorm2d(16)
+        self.pool1 = nn.MaxPool2d((2, 2))
 
-        # self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
-        # self.bn2 = nn.BatchNorm2d(64)
-        # self.pool2 = nn.MaxPool2d(2)
+        self.conv2 = nn.Conv2d(16, 32, kernel_size=(3, 3), padding=1)
+        self.bn2 = nn.BatchNorm2d(32)
+        self.pool2 = nn.MaxPool2d((2, 2))
 
-        # self.conv3 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
-        # self.bn3 = nn.BatchNorm2d(128)
-        # self.pool3 = nn.MaxPool2d(2)
-
-        # Global average pooling
-        self.gap = nn.AdaptiveAvgPool2d(1)
+        self.conv3 = nn.Conv2d(32, 64, kernel_size=(3, 3), padding=1)
+        self.bn3 = nn.BatchNorm2d(64)
+        self.pool3 = nn.AdaptiveMaxPool2d((1, 1))  # Global pooling
 
         # Classification head
         self.classifier = nn.Sequential(
-            # nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.ReLU(),
-            nn.Dropout(0.3),
-            # nn.Linear(64, num_classes)
-            nn.Linear(32, num_classes)
+            nn.Dropout(dropout_rate),
+            nn.Linear(64, num_classes)
         )
 
         # NEW, DELETE IF BREAK
@@ -295,7 +289,7 @@ class SimplerAccentCNN(nn.Module):
         x = self.pool3(F.relu(self.bn3(self.conv3(x))))
 
         # Global pooling
-        x = self.gap(x)
+        # x = self.gap(x)
         x = x.view(x.size(0), -1)
 
         # Classification
@@ -314,7 +308,8 @@ def evaluate_model(model, data_loader, device, criterion=None):
     all_labels = []
 
     with torch.no_grad():
-        for batch in data_loader:
+        eval_bar = tqdm(data_loader, desc="Evaluating", leave=False, position=0)
+        for batch in eval_bar:
             inputs = batch["input_values"].to(device)
             labels = batch["labels"].to(device)
             outputs = model(inputs)
@@ -329,6 +324,13 @@ def evaluate_model(model, data_loader, device, criterion=None):
 
             all_preds.extend(predicted.cpu().numpy())
             all_labels.extend(labels.cpu().numpy())
+
+            current_accuracy = 100.0 * correct / total
+            avg_loss = total_loss / total if criterion is not None else 0
+            eval_bar.set_postfix({
+                "acc": f"{current_accuracy:.2f}%",
+                "loss": f"{avg_loss:.4f}" if criterion is not None else "N/A"
+            })
 
     accuracy = 100.0 * correct / total
     avg_loss = total_loss / total if criterion is not None else None
@@ -543,8 +545,8 @@ def main():
     )
 
     input_channels = 1  # Default for regular MFCC
-    # if isinstance(mfcc_transform, EnhancedMFCC):
-    #     input_channels = 3  # MFCC + delta + delta-delta
+    if isinstance(mfcc_transform, EnhancedMFCC):
+        input_channels = 3  # MFCC + delta + delta-delta
 
     # Data collator
     collator = DataCollatorForAccentClassification()

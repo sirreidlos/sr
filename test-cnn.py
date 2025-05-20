@@ -1,3 +1,5 @@
+import os
+
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -13,18 +15,21 @@ import torchaudio
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 
-from shared import shared_cfg, accent_mapping
-from cnn import (
-    AccentCNN,
+from shared import shared_cfg, accent_mapping, dataset_path
+from cnn3 import (
+    SimplerAccentCNN,
     AccentDataset,
     cfg,
     DataCollatorForAccentClassification,
+    EnhancedMFCC,
 )
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+model_path = "./8489.pth"
 
 
 def set_seed(seed=42):
@@ -64,29 +69,32 @@ def evaluate_model(model, data_loader, device):
 def main():
     reverse_accent_mapping = {v: k for k, v in accent_mapping.items()}
 
-    logger.info("Loading the model from ./accent_cnn_model.pth")
-    model = AccentCNN(cfg.n_mfcc, num_classes=len(accent_mapping))
-    model.load_state_dict(torch.load("./accent_cnn_model.pth"))
+    logger.info(f"Loading the model from {model_path}")
+    model = SimplerAccentCNN(
+        input_channels=3,
+        num_mfcc=cfg.n_mfcc,
+        num_classes=len(accent_mapping),
+        dropout_rate=cfg.dropout_rate,
+    )
+    model.load_state_dict(torch.load(model_path, map_location=device))
+    # model.load_state_dict(torch.load(model))
     model.to(device)
 
-    mfcc_transform = torchaudio.transforms.MFCC(
+    mfcc_transform = EnhancedMFCC(
         sample_rate=shared_cfg.sample_rate,
         n_mfcc=cfg.n_mfcc,
-        melkwargs={
-            "n_fft": cfg.n_fft,
-            "hop_length": cfg.hop_length,
-            "n_mels": cfg.n_mels,
-        },
+        n_fft=cfg.n_fft,
+        hop_length=cfg.hop_length,
+        n_mels=cfg.n_mels,
     )
 
     collator = DataCollatorForAccentClassification()
 
     logger.info("Evaluating model on test set...")
     test_dataset = AccentDataset(
-        csv_file="./out-min-n-20-max-t-60-augmented/accent_data.csv",
+        csv_file=os.path.join(dataset_path, "accent_data.csv"),
         split="test",
         transform=mfcc_transform,
-        max_length=shared_cfg.max_length,
     )
 
     for mfcc, label in test_dataset:
@@ -103,7 +111,9 @@ def main():
             reverse_accent_mapping[i]: round(prob.item() * 100, 2)
             for i, prob in enumerate(probs)
         }
-        sorted_accent_probs = dict(sorted(accent_probs.items(), key=lambda item: item[1], reverse=True))
+        sorted_accent_probs = dict(
+            sorted(accent_probs.items(), key=lambda item: item[1], reverse=True)
+        )
 
         # accent_probs = {reverse_accent_mapping[i]: round(prob.item() * 100, 2) for i, prob in enumerate(probs)}
 

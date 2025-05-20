@@ -25,7 +25,17 @@ def set_seed(seed=42):
     """Set seed for reproducibility"""
     random.seed(seed)
     np.random.seed(seed)
-    os.environ['PYTHONHASHSEED'] = str(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)  # if using multi-GPU
+
+    # For deterministic behavior
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+    # System-wide (if using DataLoader workers, etc.)
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"  # For CUDA 10.2+
 
 def process_audio_file(audio_file, accent_dataset_dir, output_dir, target_sr=16000):
     """

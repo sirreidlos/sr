@@ -11,14 +11,17 @@ from transformers import (
     TrainingArguments,
     AutoFeatureExtractor,
 )
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
 from sklearn.model_selection import train_test_split
 from typing import Dict, List, Optional, Tuple, Union
 import logging
 import random
+from tqdm import tqdm
 from dataclasses import dataclass
+import matplotlib.pyplot as plt
+import seaborn as sns
 
-from shared import accent_mapping
+from shared import accent_mapping, dataset_path
 from main import AccentDataset, cfg, DataCollatorForAccentClassification, shared_cfg
 
 
@@ -45,11 +48,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 logger.info(f"Using device: {device}")
 
 
-def predict_accent(audio_path, model_path="./hubert-accent-classifier-final"):
-    # Load model and feature extractor
-    model = HubertForSequenceClassification.from_pretrained(model_path)
-    feature_extractor = AutoFeatureExtractor.from_pretrained(model_path)
-
+def predict_accent(audio_path, model, feature_extractor):
     # Load audio
     waveform, sample_rate = torchaudio.load(audio_path)
 
@@ -79,11 +78,11 @@ def predict_accent(audio_path, model_path="./hubert-accent-classifier-final"):
     predicted_class = torch.argmax(logits, dim=1).item()
 
     # Map index back to accent name (reverse the accent_mapping)
-    rev_accent_mapping = {v: k for k, v in accent_mapping.items()}
+    reverse_accent_mapping = {v: k for k, v in accent_mapping.items()}
 
     probs = logits.softmax(dim=1)[0].tolist()
     accent_probs = {
-        rev_accent_mapping[i]: round(prob * 100, 2) for i, prob in enumerate(probs)
+        reverse_accent_mapping[i]: round(prob * 100, 2) for i, prob in enumerate(probs)
     }
     accent_probs = dict(
         sorted(accent_probs.items(), key=lambda item: item[1], reverse=True)
@@ -94,23 +93,15 @@ def predict_accent(audio_path, model_path="./hubert-accent-classifier-final"):
     return predicted_accent, accent_probs
 
 
-# print(f'MANDARIN4: {predict_accent("./out-min-n-20-max-t-60-augmented/processed_audio/dataset/mandarin4.wav")}')
-# print(f'SWEDISH6: {predict_accent("./out-min-n-20-max-t-60-augmented/processed_audio/dataset/swedish6.wav")}')
-# print(f'FARSI5: {predict_accent("./out-min-n-20-max-t-60-augmented/processed_audio/dataset/farsi5.wav")}')
-# print(f'RUSSIAN3: {predict_accent("./out-min-n-20-max-t-60-augmented/processed_audio/dataset/russian3.wav")}')
-# print(f'GERMAN3: {predict_accent("./out-min-n-20-max-t-60-augmented/processed_audio/dataset/german3.wav")}')
-# print(f'JAPANESE6: {predict_accent("./out-min-n-20-max-t-60-augmented/processed_audio/dataset/japanese6.wav")}')
-
-
-dataset_path = "./out-min-n-20-max-t-60-augmented"
+model_name = "./hubert-accent-classifier-final4"
 df = pd.read_csv(os.path.join(dataset_path, "accent_data.csv"))
 # accent_mapping = {k:v for (v, k) in enumerate(df["accent"].unique())}
 
 model = HubertForSequenceClassification.from_pretrained(
-    "./hubert-accent-classifier-final"
+    model_name
 )
 feature_extractor = AutoFeatureExtractor.from_pretrained(
-    "./hubert-accent-classifier-final"
+    model_name
 )
 
 
@@ -154,8 +145,6 @@ data_collator = DataCollatorForAccentClassification(feature_extractor=feature_ex
 trainer = Trainer(
     model=model,
     args=training_args,
-    # train_dataset=train_dataset,
-    # eval_dataset=eval_dataset,
     data_collator=data_collator,
     compute_metrics=compute_metrics,
 )
@@ -170,5 +159,53 @@ test_dataset = AccentDataset(
     split="test",
 )
 
+
+
+reverse_accent_mapping = {v: k for k, v in accent_mapping.items()}
+
+preds = []
+labels = []
+
+for item in tqdm(test_dataset, "Testing"):
+    inputs = {"input_values": item["input_values"].unsqueeze(0)}  # Add batch dim
+    label = item["labels"].item()
+
+    with torch.no_grad():
+        logits = model(**inputs).logits
+
+    predicted_class = torch.argmax(logits, dim=1).item()
+    labels.append(label)
+    preds.append(predicted_class)
+    # probs = logits.softmax(dim=1)[0].tolist()
+
+    # accent_probs = {
+    #     reverse_accent_mapping[i]: round(prob * 100, 2) for i, prob in enumerate(probs)
+    # }
+    # sorted_accent_probs = dict(sorted(accent_probs.items(), key=lambda item: item[1], reverse=True))
+    # predicted = max(accent_probs, key=accent_probs.get)
+
+    # print(
+    #     f"PREDICTED: {predicted:10} | ACTUAL: {reverse_accent_mapping[label]:10} | {'CORRECT' if predicted_class == label else 'INCORRECT'}"
+    # )
+    # print("Accent probabilities (sorted):")
+    # for accent, prob in sorted_accent_probs.items():
+    #     print(f"  {accent:12}: {prob}%")
+
+cm = confusion_matrix(labels, preds)
+class_names = [reverse_accent_mapping[i] for i in range(len(accent_mapping))]
+plt.figure(figsize=(10, 8))
+sns.heatmap(
+    cm,
+    annot=True,
+    fmt="d",
+    cmap="Blues",
+    xticklabels=class_names,
+    yticklabels=class_names,
+)
+plt.xlabel("Predicted")
+plt.ylabel("True")
+plt.title("Confusion Matrix")
+plt.savefig("hubert_confusion_matrix.png")
+    
 test_results = trainer.evaluate(test_dataset)
 logger.info(f"Test results: {test_results}")

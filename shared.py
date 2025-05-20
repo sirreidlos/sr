@@ -2,7 +2,7 @@ import os
 import pandas as pd
 
 # dataset_path = "./out-min-n-20-max-t-30-clean/"
-dataset_path = "./out-min-n-30-max-t-30-augmented/"
+dataset_path = "./out-min-n-40-max-t-30-deterministic"
 df = pd.read_csv(os.path.join(dataset_path, "accent_data.csv"))
 # max_duration = df["duration"].max()
 accent_mapping = {k:v for (v, k) in enumerate(df["accent"].unique())}
