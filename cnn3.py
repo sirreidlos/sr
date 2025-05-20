@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
-from sklearn.metrics import confusion_matrix, classification_report, f1_score
+from sklearn.metrics import confusion_matrix, classification_report, f1_score, roc_auc_score, roc_curve, auc, accuracy_score, recall_score, precision_score
 from tqdm import tqdm
 from typing import Dict, List, Tuple
 import logging
@@ -16,6 +16,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 import torchaudio
+from sklearn.preprocessing import label_binarize
+from itertools import cycle
 
 from shared import SharedConfig, accent_mapping, dataset_path
 
@@ -284,13 +286,18 @@ class SimplerAccentCNN(nn.Module):
             x = self.spec_augment(x)
 
         # Conv blocks
+        # print(f"[DEBUG] x INIT: {type(x)} size: {x.size()} dim: {x.dim()}")
         x = self.pool1(F.relu(self.bn1(self.conv1(x))))
+        # print(f"[DEBUG] x 1: {type(x)} size: {x.size()} dim: {x.dim()}")
         x = self.pool2(F.relu(self.bn2(self.conv2(x))))
+        # print(f"[DEBUG] x 2: {type(x)} size: {x.size()} dim: {x.dim()}")
         x = self.pool3(F.relu(self.bn3(self.conv3(x))))
+        # print(f"[DEBUG] x 3: {type(x)} size: {x.size()} dim: {x.dim()}")
 
         # Global pooling
         # x = self.gap(x)
         x = x.view(x.size(0), -1)
+        # print(f"[DEBUG] x 4: {type(x)} size: {x.size()} dim: {x.dim()}")
 
         # Classification
         x = self.classifier(x)
@@ -306,6 +313,7 @@ def evaluate_model(model, data_loader, device, criterion=None):
     # For confusion matrix
     all_preds = []
     all_labels = []
+    all_probs = []
 
     with torch.no_grad():
         eval_bar = tqdm(data_loader, desc="Evaluating", leave=False, position=0)
@@ -318,12 +326,14 @@ def evaluate_model(model, data_loader, device, criterion=None):
                 loss = criterion(outputs, labels)
                 total_loss += loss.item() * inputs.size(0)
 
+            probs = F.softmax(outputs, dim=1)
             _, predicted = outputs.max(1)
             total += labels.size(0)
             correct += predicted.eq(labels).sum().item()
 
             all_preds.extend(predicted.cpu().numpy())
             all_labels.extend(labels.cpu().numpy())
+            all_probs.extend(probs.cpu().numpy())
 
             current_accuracy = 100.0 * correct / total
             avg_loss = total_loss / total if criterion is not None else 0
@@ -332,14 +342,22 @@ def evaluate_model(model, data_loader, device, criterion=None):
                 "loss": f"{avg_loss:.4f}" if criterion is not None else "N/A"
             })
 
-    accuracy = 100.0 * correct / total
+    # accuracy = 100.0 * correct / total
+    accuracy = accuracy_score(all_labels, all_preds)
+    recall = recall_score(all_labels, all_preds, average="weighted")
+    precision = precision_score(all_labels, all_preds, average="weighted")
+    f1 = f1_score(all_labels, all_preds, average="weighted")
     avg_loss = total_loss / total if criterion is not None else None
 
     return {
         "accuracy": accuracy,
+        "recall": recall,
+        "precision": precision,
+        "f1": f1,
         "loss": avg_loss,
         "predictions": all_preds,
         "true_labels": all_labels,
+        "probabilities": all_probs,
     }
 
 
@@ -497,6 +515,73 @@ def train_model(
     return model
 
 
+def plot_roc_curve(y_true, y_scores, class_names):
+    """
+    Plot ROC curve for multi-class classification
+    
+    Args:
+        y_true: True labels (one-hot encoded)
+        y_scores: Predicted probabilities
+        class_names: List of class names
+    """
+    n_classes = len(class_names)
+    
+    # Compute ROC curve and ROC area for each class
+    fpr = dict()
+    tpr = dict()
+    roc_auc = dict()
+    
+    for i in range(n_classes):
+        fpr[i], tpr[i], _ = roc_curve(y_true[:, i], y_scores[:, i])
+        roc_auc[i] = auc(fpr[i], tpr[i])
+    
+    # Compute micro-average ROC curve and ROC area
+    fpr["micro"], tpr["micro"], _ = roc_curve(y_true.ravel(), y_scores.ravel())
+    roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
+    
+    # Plot all ROC curves
+    plt.figure(figsize=(12, 9))
+    
+    # Plot micro-average ROC curve
+    plt.plot(
+        fpr["micro"],
+        tpr["micro"],
+        label=f'Micro-average ROC (AUC = {roc_auc["micro"]:.2f})',
+        color='deeppink',
+        linestyle=':',
+        linewidth=4,
+    )
+    
+    # Plot ROC curves for all classes
+    colors = cycle(['aqua', 'darkorange', 'cornflowerblue', 'green', 'red', 
+                    'purple', 'brown', 'pink', 'gray', 'olive', 'cyan'])
+    
+    for i, color in zip(range(n_classes), colors):
+        plt.plot(
+            fpr[i],
+            tpr[i],
+            color=color,
+            lw=2,
+            label=f'{class_names[i]} (AUC = {roc_auc[i]:.2f})',
+        )
+    
+    # Plot diagonal line (represents random classifier)
+    plt.plot([0, 1], [0, 1], 'k--', lw=2)
+    
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('Multi-class ROC Curves - One-vs-Rest')
+    plt.legend(loc="lower right")
+    
+    # Save the plot
+    plt.savefig('roc_curve.png', dpi=300, bbox_inches='tight')
+    logger.info("ROC curve saved to roc_curve.png")
+    
+    # Return AUC scores for logging
+    return roc_auc
+
 def analyze_results(model, test_loader, device):
     """Perform detailed analysis of model performance"""
     results = evaluate_model(model, test_loader, device)
@@ -508,6 +593,7 @@ def analyze_results(model, test_loader, device):
     # Get class names (reverse the accent_mapping)
     reverse_mapping = {v: k for k, v in accent_mapping.items()}
     class_names = [reverse_mapping[i] for i in range(len(accent_mapping))]
+    n_classes = len(class_names)
 
     # Confusion matrix
     cm = confusion_matrix(results["true_labels"], results["predictions"])
@@ -533,6 +619,21 @@ def analyze_results(model, test_loader, device):
         results["true_labels"], results["predictions"], target_names=class_names
     )
     logger.info(f"Classification report:\n{report}")
+
+    y_test = np.array(results["true_labels"])
+    y_score = np.array(results["probabilities"])
+    
+    # Binarize the labels for ROC curve calculation
+    y_test_bin = label_binarize(y_test, classes=list(range(n_classes)))
+    
+    # Plot ROC curves and get AUC scores
+    roc_auc = plot_roc_curve(y_test_bin, y_score, class_names)
+    
+    # Log AUC scores
+    logger.info("ROC AUC scores:")
+    for i, class_name in enumerate(class_names):
+        logger.info(f"{class_name}: {roc_auc[i]:.4f}")
+    logger.info(f"Micro-average: {roc_auc['micro']:.4f}")
 
 
 def main():

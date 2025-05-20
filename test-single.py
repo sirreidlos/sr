@@ -76,7 +76,7 @@ def pred_cnn(model_path, input_path):
     sorted_accent_probs = dict(
         sorted(accent_probs.items(), key=lambda item: item[1], reverse=True)
     )
-    print("Accent probabilities (sorted):")
+    print("MFCC + CNN probabilities (sorted):")
     for accent, prob in sorted_accent_probs.items():
         print(f"  {accent:12}: {prob}%")
 
@@ -116,7 +116,7 @@ def pred_hubert(model_path, input_path):
     sorted_accent_probs = dict(
         sorted(accent_probs.items(), key=lambda item: item[1], reverse=True)
     )
-    print("Accent probabilities (sorted):")
+    print("HuBERT probabilities (sorted):")
     for accent, prob in sorted_accent_probs.items():
         print(f"  {accent:12}: {prob}%")
 

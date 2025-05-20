@@ -1,5 +1,6 @@
 import os
 
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -50,6 +51,8 @@ logger.info(f"Using device: {device}")
 
 def evaluate_model(model, data_loader, device):
     model.eval()
+    all_labels = []
+    all_preds = []
     correct = 0
     total = 0
     with torch.no_grad():
@@ -57,13 +60,19 @@ def evaluate_model(model, data_loader, device):
             inputs = batch["input_values"].to(device)
             labels = batch["labels"].to(device)
             outputs = model(inputs)
-            logger.info(labels, outputs)
+            # logger.info(labels, outputs)
             _, predicted = outputs.max(1)
+            all_preds.extend(predicted.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
             total += labels.size(0)
             correct += predicted.eq(labels).sum().item()
 
-    accuracy = 100.0 * correct / total
-    logger.info(f"Test results: {accuracy}")
+    # accuracy = 100.0 * correct / total
+    accuracy = accuracy_score(all_labels, all_preds)
+    recall = recall_score(all_labels, all_preds, average="weighted")
+    precision = precision_score(all_labels, all_preds, average="weighted")
+    f1 = f1_score(all_labels, all_preds, average="weighted")
+    logger.info(f"Test results: Acc: {accuracy}, Precision: {precision}, Recall: {recall}, F1: {f1}")
 
 
 def main():
@@ -97,33 +106,33 @@ def main():
         transform=mfcc_transform,
     )
 
-    for mfcc, label in test_dataset:
-        if mfcc.shape[-1] < shared_cfg.max_length:
-            pad_width = shared_cfg.max_length - mfcc.shape[-1]
-            mfcc = F.pad(mfcc, (0, pad_width))  # pad last dim only
+    # for mfcc, label in test_dataset:
+    #     if mfcc.shape[-1] < shared_cfg.max_length:
+    #         pad_width = shared_cfg.max_length - mfcc.shape[-1]
+    #         mfcc = F.pad(mfcc, (0, pad_width))  # pad last dim only
 
-        model.eval()
-        outputs = model(mfcc.unsqueeze(0))
+    #     model.eval()
+    #     outputs = model(mfcc.unsqueeze(0))
 
-        probs = F.softmax(outputs, dim=1).squeeze()  # shape: [num_classes]
+    #     probs = F.softmax(outputs, dim=1).squeeze()  # shape: [num_classes]
 
-        accent_probs = {
-            reverse_accent_mapping[i]: round(prob.item() * 100, 2)
-            for i, prob in enumerate(probs)
-        }
-        sorted_accent_probs = dict(
-            sorted(accent_probs.items(), key=lambda item: item[1], reverse=True)
-        )
+    #     accent_probs = {
+    #         reverse_accent_mapping[i]: round(prob.item() * 100, 2)
+    #         for i, prob in enumerate(probs)
+    #     }
+    #     sorted_accent_probs = dict(
+    #         sorted(accent_probs.items(), key=lambda item: item[1], reverse=True)
+    #     )
 
-        # accent_probs = {reverse_accent_mapping[i]: round(prob.item() * 100, 2) for i, prob in enumerate(probs)}
+    #     # accent_probs = {reverse_accent_mapping[i]: round(prob.item() * 100, 2) for i, prob in enumerate(probs)}
 
-        _, predicted = outputs.max(1)
-        print(
-            f"PREDICTED: {reverse_accent_mapping.get(predicted.item()):10} | ACTUAL: {reverse_accent_mapping.get(label):10} | {'CORRECT' if predicted.item() == label else 'INCORRECT'}"
-        )
-        print("Accent probabilities (sorted):")
-        for accent, prob in sorted_accent_probs.items():
-            print(f"  {accent:12}: {prob}%")
+    #     _, predicted = outputs.max(1)
+    #     print(
+    #         f"PREDICTED: {reverse_accent_mapping.get(predicted.item()):10} | ACTUAL: {reverse_accent_mapping.get(label):10} | {'CORRECT' if predicted.item() == label else 'INCORRECT'}"
+    #     )
+    #     print("Accent probabilities (sorted):")
+    #     for accent, prob in sorted_accent_probs.items():
+    #         print(f"  {accent:12}: {prob}%")
 
     test_loader = DataLoader(
         test_dataset, batch_size=16, shuffle=False, collate_fn=collator
