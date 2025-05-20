@@ -1,0 +1,121 @@
+2025-05-15 22:06:07,120 - __main__ - INFO - Using device: cpu
+2025-05-15 22:06:07,132 - __main__ - INFO - Class weights: {0: 1.0, 1: 1.0, 2: 1.0, 3: 1.0, 4: 1.0}
+2025-05-15 22:06:07,132 - __main__ - INFO - Loaded 1050 samples for train split
+2025-05-15 22:06:07,136 - __main__ - INFO - Loaded 225 samples for val split
+2025-05-15 22:06:07,140 - __main__ - INFO - Loaded 225 samples for test split
+2025-05-15 22:06:07,143 - __main__ - INFO - Model architecture:
+SimplerAccentCNN(
+  (conv1): Conv2d(3, 16, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+  (bn1): BatchNorm2d(16, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+  (pool1): MaxPool2d(kernel_size=(2, 2), stride=(2, 2), padding=0, dilation=1, ceil_mode=False)
+  (conv2): Conv2d(16, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+  (bn2): BatchNorm2d(32, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+  (pool2): MaxPool2d(kernel_size=(2, 2), stride=(2, 2), padding=0, dilation=1, ceil_mode=False)
+  (conv3): Conv2d(32, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+  (bn3): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+  (pool3): AdaptiveMaxPool2d(output_size=(1, 1))
+  (classifier): Sequential(
+    (0): Dropout(p=0.2, inplace=False)
+    (1): Linear(in_features=64, out_features=5, bias=True)
+  )
+  (spec_augment): SpecAugment()
+)
+2025-05-15 22:06:07,143 - __main__ - INFO - Total parameters: 24,133
+2025-05-15 22:06:07,143 - __main__ - INFO - Trainable parameters: 24,133
+2025-05-15 22:06:07,143 - __main__ - INFO - Starting training...
+2025-05-15 22:06:07,146 - __main__ - INFO - Using weighted CrossEntropyLoss with weights: tensor([1., 1., 1., 1., 1.])
+/nix/store/lhyg9qld72g76n7w4ilg6gpkj9pkjxq8-python3-3.12.10-env/lib/python3.12/site-packages/torch/optim/lr_scheduler.py:62: UserWarning: The verbose parameter is deprecated. Please use get_last_lr() to access the learning rate.
+  warnings.warn(
+Training Progress:   4%|▊                    | 66/1650 [01:01<22:50,  1.16it/s, epoch=1, train_acc=23.71%]2025-05-15 22:07:10,154 - __main__ - INFO - Epoch 1/25 - Train Loss: 2.0343, Accuracy: 23.71%, F1 Score: 0.2358
+2025-05-15 22:07:18,826 - __main__ - INFO - Epoch 1/25 - Val Loss: 1.5882, Val Accuracy: 28.00%
+2025-05-15 22:07:18,826 - __main__ - INFO - New best validation accuracy: 28.00%
+Training Progress:   8%|█▌                  | 132/1650 [02:11<21:01,  1.20it/s, epoch=2, train_acc=28.29%]2025-05-15 22:08:20,117 - __main__ - INFO - Epoch 2/25 - Train Loss: 1.6903, Accuracy: 28.29%, F1 Score: 0.2828
+2025-05-15 22:08:28,187 - __main__ - INFO - Epoch 2/25 - Val Loss: 1.4630, Val Accuracy: 35.56%
+2025-05-15 22:08:28,187 - __main__ - INFO - New best validation accuracy: 35.56%
+Training Progress:  12%|██▍                 | 198/1650 [03:21<20:02,  1.21it/s, epoch=3, train_acc=34.10%]2025-05-15 22:09:30,022 - __main__ - INFO - Epoch 3/25 - Train Loss: 1.5753, Accuracy: 34.10%, F1 Score: 0.3389
+2025-05-15 22:09:38,138 - __main__ - INFO - Epoch 3/25 - Val Loss: 1.4260, Val Accuracy: 40.44%
+2025-05-15 22:09:38,139 - __main__ - INFO - New best validation accuracy: 40.44%
+Training Progress:  16%|███▏                | 264/1650 [04:28<16:52,  1.37it/s, epoch=4, train_acc=37.33%]2025-05-15 22:10:37,205 - __main__ - INFO - Epoch 4/25 - Train Loss: 1.4903, Accuracy: 37.33%, F1 Score: 0.3692
+2025-05-15 22:10:45,170 - __main__ - INFO - Epoch 4/25 - Val Loss: 1.3748, Val Accuracy: 43.56%
+2025-05-15 22:10:45,171 - __main__ - INFO - New best validation accuracy: 43.56%
+Training Progress:  20%|████                | 330/1650 [05:36<17:28,  1.26it/s, epoch=5, train_acc=39.14%]2025-05-15 22:11:44,720 - __main__ - INFO - Epoch 5/25 - Train Loss: 1.4253, Accuracy: 39.14%, F1 Score: 0.3885
+2025-05-15 22:11:52,865 - __main__ - INFO - Epoch 5/25 - Val Loss: 1.3290, Val Accuracy: 42.22%
+2025-05-15 22:11:52,866 - __main__ - INFO - No improvement for 1 epochs
+Training Progress:  24%|████▊               | 396/1650 [06:45<16:42,  1.25it/s, epoch=6, train_acc=43.52%]2025-05-15 22:12:53,338 - __main__ - INFO - Epoch 6/25 - Train Loss: 1.3721, Accuracy: 43.52%, F1 Score: 0.4330
+2025-05-15 22:13:01,721 - __main__ - INFO - Epoch 6/25 - Val Loss: 1.3555, Val Accuracy: 40.44%
+2025-05-15 22:13:01,721 - __main__ - INFO - No improvement for 2 epochs
+Training Progress:  28%|█████▌              | 462/1650 [07:55<16:55,  1.17it/s, epoch=7, train_acc=45.05%]2025-05-15 22:14:03,347 - __main__ - INFO - Epoch 7/25 - Train Loss: 1.2957, Accuracy: 45.05%, F1 Score: 0.4472
+2025-05-15 22:14:12,353 - __main__ - INFO - Epoch 7/25 - Val Loss: 1.2266, Val Accuracy: 45.33%
+2025-05-15 22:14:12,353 - __main__ - INFO - New best validation accuracy: 45.33%
+Training Progress:  32%|██████▍             | 528/1650 [09:06<15:53,  1.18it/s, epoch=8, train_acc=47.14%]2025-05-15 22:15:15,200 - __main__ - INFO - Epoch 8/25 - Train Loss: 1.2494, Accuracy: 47.14%, F1 Score: 0.4703
+2025-05-15 22:15:24,046 - __main__ - INFO - Epoch 8/25 - Val Loss: 1.2824, Val Accuracy: 45.33%
+2025-05-15 22:15:24,046 - __main__ - INFO - No improvement for 1 epochs
+Training Progress:  36%|███████▏            | 594/1650 [10:17<14:19,  1.23it/s, epoch=9, train_acc=50.10%]2025-05-15 22:16:25,717 - __main__ - INFO - Epoch 9/25 - Train Loss: 1.2065, Accuracy: 50.10%, F1 Score: 0.4997
+2025-05-15 22:16:33,656 - __main__ - INFO - Epoch 9/25 - Val Loss: 1.1550, Val Accuracy: 52.00%
+2025-05-15 22:16:33,656 - __main__ - INFO - New best validation accuracy: 52.00%
+Training Progress:  40%|███████▌           | 660/1650 [11:24<13:20,  1.24it/s, epoch=10, train_acc=51.05%]2025-05-15 22:17:32,828 - __main__ - INFO - Epoch 10/25 - Train Loss: 1.1616, Accuracy: 51.05%, F1 Score: 0.5076
+2025-05-15 22:17:40,949 - __main__ - INFO - Epoch 10/25 - Val Loss: 1.1554, Val Accuracy: 52.44%
+2025-05-15 22:17:40,950 - __main__ - INFO - New best validation accuracy: 52.44%
+Training Progress:  44%|████████▎          | 726/1650 [12:36<13:52,  1.11it/s, epoch=11, train_acc=55.05%]2025-05-15 22:18:44,791 - __main__ - INFO - Epoch 11/25 - Train Loss: 1.1277, Accuracy: 55.05%, F1 Score: 0.5468
+2025-05-15 22:18:54,021 - __main__ - INFO - Epoch 11/25 - Val Loss: 1.0925, Val Accuracy: 52.00%
+2025-05-15 22:18:54,022 - __main__ - INFO - No improvement for 1 epochs
+Training Progress:  48%|█████████          | 792/1650 [13:50<12:38,  1.13it/s, epoch=12, train_acc=59.71%]2025-05-15 22:19:58,725 - __main__ - INFO - Epoch 12/25 - Train Loss: 1.0275, Accuracy: 59.71%, F1 Score: 0.5947
+2025-05-15 22:20:07,604 - __main__ - INFO - Epoch 12/25 - Val Loss: 1.0090, Val Accuracy: 60.00%
+2025-05-15 22:20:07,605 - __main__ - INFO - New best validation accuracy: 60.00%
+Training Progress:  52%|█████████▉         | 858/1650 [15:04<11:37,  1.14it/s, epoch=13, train_acc=62.76%]2025-05-15 22:21:12,404 - __main__ - INFO - Epoch 13/25 - Train Loss: 0.9597, Accuracy: 62.76%, F1 Score: 0.6245
+2025-05-15 22:21:20,932 - __main__ - INFO - Epoch 13/25 - Val Loss: 1.0325, Val Accuracy: 58.22%
+2025-05-15 22:21:20,932 - __main__ - INFO - No improvement for 1 epochs
+Training Progress:  56%|██████████▋        | 924/1650 [16:17<10:28,  1.16it/s, epoch=14, train_acc=60.48%]2025-05-15 22:22:25,373 - __main__ - INFO - Epoch 14/25 - Train Loss: 0.9906, Accuracy: 60.48%, F1 Score: 0.6045
+2025-05-15 22:22:34,000 - __main__ - INFO - Epoch 14/25 - Val Loss: 0.8866, Val Accuracy: 70.67%
+2025-05-15 22:22:34,000 - __main__ - INFO - New best validation accuracy: 70.67%
+Training Progress:  60%|███████████▍       | 990/1650 [17:29<09:27,  1.16it/s, epoch=15, train_acc=58.76%]2025-05-15 22:23:37,995 - __main__ - INFO - Epoch 15/25 - Train Loss: 1.0171, Accuracy: 58.76%, F1 Score: 0.5847
+2025-05-15 22:23:47,047 - __main__ - INFO - Epoch 15/25 - Val Loss: 0.9140, Val Accuracy: 69.33%
+2025-05-15 22:23:47,047 - __main__ - INFO - No improvement for 1 epochs
+Training Progress:  64%|███████████▌      | 1056/1650 [18:43<08:31,  1.16it/s, epoch=16, train_acc=65.14%]2025-05-15 22:24:51,427 - __main__ - INFO - Epoch 16/25 - Train Loss: 0.9250, Accuracy: 65.14%, F1 Score: 0.6500
+2025-05-15 22:25:00,616 - __main__ - INFO - Epoch 16/25 - Val Loss: 0.8469, Val Accuracy: 70.22%
+2025-05-15 22:25:00,617 - __main__ - INFO - No improvement for 2 epochs
+Training Progress:  68%|████████████▏     | 1122/1650 [19:56<07:38,  1.15it/s, epoch=17, train_acc=64.86%]2025-05-15 22:26:04,886 - __main__ - INFO - Epoch 17/25 - Train Loss: 0.8707, Accuracy: 64.86%, F1 Score: 0.6472
+2025-05-15 22:26:13,945 - __main__ - INFO - Epoch 17/25 - Val Loss: 0.8429, Val Accuracy: 69.33%
+2025-05-15 22:26:13,945 - __main__ - INFO - No improvement for 3 epochs
+Training Progress:  72%|████████████▉     | 1188/1650 [21:10<06:46,  1.14it/s, epoch=18, train_acc=69.05%]2025-05-15 22:27:19,120 - __main__ - INFO - Epoch 18/25 - Train Loss: 0.8302, Accuracy: 69.05%, F1 Score: 0.6885
+2025-05-15 22:27:28,188 - __main__ - INFO - Epoch 18/25 - Val Loss: 0.7578, Val Accuracy: 73.78%
+2025-05-15 22:27:28,189 - __main__ - INFO - New best validation accuracy: 73.78%
+Training Progress:  76%|█████████████▋    | 1254/1650 [22:25<05:46,  1.14it/s, epoch=19, train_acc=71.05%]2025-05-15 22:28:34,238 - __main__ - INFO - Epoch 19/25 - Train Loss: 0.7653, Accuracy: 71.05%, F1 Score: 0.7089
+2025-05-15 22:28:43,191 - __main__ - INFO - Epoch 19/25 - Val Loss: 0.7109, Val Accuracy: 78.22%
+2025-05-15 22:28:43,192 - __main__ - INFO - New best validation accuracy: 78.22%
+Training Progress:  80%|██████████████▍   | 1320/1650 [23:38<04:46,  1.15it/s, epoch=20, train_acc=72.67%]2025-05-15 22:29:47,220 - __main__ - INFO - Epoch 20/25 - Train Loss: 0.7527, Accuracy: 72.67%, F1 Score: 0.7256
+2025-05-15 22:29:55,791 - __main__ - INFO - Epoch 20/25 - Val Loss: 0.7070, Val Accuracy: 76.44%
+2025-05-15 22:29:55,792 - __main__ - INFO - No improvement for 1 epochs
+Training Progress:  84%|███████████████   | 1386/1650 [24:49<03:49,  1.15it/s, epoch=21, train_acc=75.43%]2025-05-15 22:30:58,322 - __main__ - INFO - Epoch 21/25 - Train Loss: 0.6917, Accuracy: 75.43%, F1 Score: 0.7526
+2025-05-15 22:31:06,952 - __main__ - INFO - Epoch 21/25 - Val Loss: 0.6801, Val Accuracy: 76.00%
+2025-05-15 22:31:06,953 - __main__ - INFO - No improvement for 2 epochs
+Training Progress:  88%|███████████████▊  | 1452/1650 [26:03<02:52,  1.15it/s, epoch=22, train_acc=75.71%]2025-05-15 22:32:11,578 - __main__ - INFO - Epoch 22/25 - Train Loss: 0.6790, Accuracy: 75.71%, F1 Score: 0.7565
+2025-05-15 22:32:20,335 - __main__ - INFO - Epoch 22/25 - Val Loss: 0.7023, Val Accuracy: 74.22%
+2025-05-15 22:32:20,335 - __main__ - INFO - No improvement for 3 epochs
+Training Progress:  92%|████████████████▌ | 1518/1650 [27:16<01:50,  1.19it/s, epoch=23, train_acc=76.86%]2025-05-15 22:33:24,754 - __main__ - INFO - Epoch 23/25 - Train Loss: 0.6533, Accuracy: 76.86%, F1 Score: 0.7676
+2025-05-15 22:33:33,573 - __main__ - INFO - Epoch 23/25 - Val Loss: 0.7324, Val Accuracy: 71.56%
+2025-05-15 22:33:33,573 - __main__ - INFO - No improvement for 4 epochs
+Training Progress:  96%|█████████████████▎| 1584/1650 [28:31<00:59,  1.12it/s, epoch=24, train_acc=75.24%]2025-05-15 22:34:39,517 - __main__ - INFO - Epoch 24/25 - Train Loss: 0.6517, Accuracy: 75.24%, F1 Score: 0.7515
+2025-05-15 22:34:49,094 - __main__ - INFO - Epoch 24/25 - Val Loss: 0.5978, Val Accuracy: 83.56%
+2025-05-15 22:34:49,094 - __main__ - INFO - New best validation accuracy: 83.56%
+Training Progress: 100%|██████████████████| 1650/1650 [29:46<00:00,  1.12it/s, epoch=25, train_acc=78.86%]2025-05-15 22:35:54,732 - __main__ - INFO - Epoch 25/25 - Train Loss: 0.5861, Accuracy: 78.86%, F1 Score: 0.7881
+2025-05-15 22:36:03,957 - __main__ - INFO - Epoch 25/25 - Val Loss: 0.5581, Val Accuracy: 83.56%
+2025-05-15 22:36:03,957 - __main__ - INFO - No improvement for 1 epochs
+Training Progress: 100%|██████████████████| 1650/1650 [29:55<00:00,  1.09s/it, epoch=25, train_acc=78.86%]
+2025-05-15 22:36:03,958 - __main__ - INFO - Training completed. Restoring best model with validation accuracy: 83.56%
+2025-05-15 22:36:03,961 - __main__ - INFO - Model saved to ./improved_accent_cnn_model3.pth
+2025-05-15 22:36:03,961 - __main__ - INFO - Evaluating model on test set...
+2025-05-15 22:36:13,587 - __main__ - INFO - Test accuracy: 84.89%
+2025-05-15 22:36:13,996 - __main__ - INFO - Confusion matrix saved to confusion_matrix.png
+2025-05-15 22:36:14,003 - __main__ - INFO - Classification report:
+              precision    recall  f1-score   support
+
+      arabic       0.95      0.80      0.87        45
+     english       0.74      0.89      0.81        45
+     spanish       0.76      0.78      0.77        45
+      french       0.97      0.84      0.90        45
+       dutch       0.88      0.93      0.90        45
+
+    accuracy                           0.85       225
+   macro avg       0.86      0.85      0.85       225
+weighted avg       0.86      0.85      0.85       225
